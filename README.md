@@ -1,32 +1,67 @@
 # LeetCode Sync Automation
 
-📌 Automatically fetch accepted LeetCode submissions and push them to a separate GitHub repo — with one commit per problem per language.
+> 🧠 Automatically fetch accepted LeetCode submissions and sync them to a structured GitHub repo, with one commit per problem per language.
 
 ---
 
-## 📂 Folder & File Layout
+## 📁 Project Structure
 
+```
 leetcode-sync-automation/
+├── sync.py                  # Main script runner
+├── leetcode_client.py       # Handles login & fetching submissions
+├── git_utils.py             # Commits and stages files
+├── utils.py                 # Filename helpers and utilities
 ├── config/
-│   └── (ignored by .gitignore)
+│   ├── secrets.json         # LeetCode credentials (ignored)
+│   └── cookies.json         # Session cookie after login
 ├── state/
-│   └── committed.json        # Tracks submitted problems (auto-created)
-├── leetcode_client.py        # LeetCode login & fetch code
-├── git_utils.py              # Git add, commit, push
-├── utils.py                  # Slugify, filename builder, etc.
-├── sync.py                   # 🔁 Main runner script
-├── .gitignore
-├── LICENSE                   # MIT
-└── README.md
---------------------------------
+│   ├── committed.json       # Tracks committed problems
+│   └── problem_metadata.json# Cached metadata from GraphQL
+├── .gitignore               # Ignores local/session/state files
+├── LICENSE                  # Apache 2.0 License
+└── README.md                # This file
+```
 
-## 🔐 Config: `config/secrets.json`
+---
 
-This file stores your LeetCode login credentials and the path to your solutions repo.
+## 🚀 Features
 
-> ⚠️ This file should always be kept outside version control (already in `.gitignore`)
+- ✅ Logs into your LeetCode account (with cookies or credentials)
+- ✅ Fetches all **accepted submissions**
+- ✅ Saves them in language-specific folders: `cpp/`, `python/`, `java/` etc.
+- ✅ Each problem committed exactly once per language
+- ✅ Uses LeetCode problem ID in filenames: `1_two_sum.cpp`
+- ✅ Commits each file as a separate Git commit
+- ✅ Optionally saves full problem metadata for later use
 
-### ✅ Example
+---
+
+## ⚙️ Initial Setup
+
+
+### 1. Create a separate repo for your solutions
+
+```bash
+mkdir leetcode-solutions-repo
+cd leetcode-solutions-repo
+git init
+touch README.md              # or add your existing files
+git add .
+git commit -m "Initial commit"
+git remote add origin git@github.com:your-username/my-project.git
+git branch -M main
+git push -u origin main
+```
+
+### 2. Clone this repo
+
+```bash
+git clone git@github.com:type-traits/leetcode-sync-automation.git
+cd leetcode-sync-automation
+```
+
+### 3. Create `config/secrets.json` with following content
 
 ```json
 {
@@ -34,34 +69,79 @@ This file stores your LeetCode login credentials and the path to your solutions 
   "leetcode_password": "your_leetcode_password",
   "solutions_repo_path": "../leetcode-solutions"
 }
+```
 
-🔧 Setup Instructions
-1. Clone both repos
+Or leave credentials out and log in manually (cookies will be saved).
 
-git clone https://github.com/yourname/leetcode-sync-automation
-git clone https://github.com/yourname/leetcode-solutions
+---
 
-2. Install required dependencies
+## 🧠 Running the Script
 
-pip3 install playwright GitPython python-slugify rich
-python3 -m playwright install
-
-3. Add your secrets.json
-Place your login credentials in a safe location, like this:
-
-    leetcode/config/secrets.json
-
-🚀 Run the Script
-From the leetcode-sync-automation/ folder:
-
+```bash
 python3 sync.py
+```
 
-It will:
+- Browser will open on first run (non-headless)
+- You manually log in and solve CAPTCHA
+- Cookies will be stored in `config/cookies.json`
+- From then on, sync is automated
 
-Log into LeetCode
+---
 
-Fetch accepted solutions
+## 💾 Output Format
 
-Save them in leetcode-solutions/ under folders like cpp/, python/
+Each submission is saved like:
 
-Commit & push them, one commit per problem per language
+```
+cpp/1_two_sum.cpp
+python/121_best_time_to_buy_and_sell_stock.py
+```
+
+**Commit Message Example:**
+```
+Add solution for 121. Best Time to Buy and Sell Stock [Python]
+```
+
+---
+
+## 🔐 .gitignore Highlights
+
+```
+.DS_Store
+__pycache__/
+config/
+state/
+.env
+```
+
+---
+
+## 📜 License
+
+This project is licensed under the [Apache 2.0 License](./LICENSE).
+
+---
+
+## 🙋 FAQ
+
+- **Q:** What if I switch programming languages?  
+  **A:** Submissions go into separate folders per language (`cpp/`, `python/`, etc.), and a new commit is created.
+
+- **Q:** What if I want to re-sync everything?  
+  **A:** Delete `state/committed.json` and rerun.
+
+- **Q:** Can I run this on GitHub Actions?  
+  **A:** Not directly, because login requires CAPTCHA. But once cookies are stored, it can run locally without user input.
+
+---
+
+## ✨ Future Ideas
+
+- `--dry-run` mode
+- Generate README index of solved problems
+- Markdown export per problem
+- Filter by difficulty or tags
+
+---
+
+Automated with ❤️ by [Chandra Prakash Dixit](https://in.linkedin.com/in/dixit-chandra)
