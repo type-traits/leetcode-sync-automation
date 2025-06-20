@@ -1,0 +1,32 @@
+# macOS system files
+.DS_Store
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.log
+*.tmp
+
+# VSCode / JetBrains IDEs
+.vscode/
+.idea/
+
+# Playwright downloads
+playwright-report/
+test-results/
+
+# Local config/secrets/state
+config/
+state/
+
+# Env files
+.env
+.env.*
+
+# Notebook checkpoints
+.ipynb_checkpoints/
+
+# Debug Files
+page_snapshot.html
+queries_debug.json
