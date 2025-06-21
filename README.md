@@ -14,9 +14,9 @@ leetcode-sync-automation/
 ├── utils.py                 # Filename helpers and utilities
 ├── config/
 │   ├── secrets.json         # LeetCode credentials (ignored)
-│   └── cookies.json         # Session cookie after login
+│   └── cookies.json         # Session cookie after login (auto generated)
 ├── state/
-│   ├── committed.json       # Tracks committed problems
+│   ├── committed.json       # Tracks committed problems (Do not delete this file ever)
 │   └── problem_metadata.json# Cached metadata from GraphQL
 ├── .gitignore               # Ignores local/session/state files
 ├── LICENSE                  # Apache 2.0 License
@@ -40,6 +40,27 @@ leetcode-sync-automation/
 ---
 
 ## ⚙️ Initial Setup
+
+## 🧰 Prerequisites
+
+Before running the script, make sure you have the following installed:
+
+### 🔹 Python Version
+
+Python **3.9 or higher** is recommended.
+
+### 🔹 Python Packages
+
+Install all dependencies using:
+
+```bash
+pip3 install playwright rich GitPython
+```
+Then install the required browser driver for Playwright:
+```bash
+playwright install
+```
+>This downloads Chromium used for browser automation.
 
 
 ### 1. Create a separate repo for your solutions
