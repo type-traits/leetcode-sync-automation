@@ -34,6 +34,8 @@ leetcode-sync-automation/
 - ✅ Uses LeetCode problem ID in filenames: `1_two_sum.cpp`
 - ✅ Commits each file as a separate Git commit
 - ✅ Optionally saves full problem metadata for later use
+- ✅ Supports command-line flag `--force-login` to manually refresh session cookies
+- ✅ CLI-ready: Easily extensible for future options like `--dry-run`, `--language`, `--no-commit`
 
 ---
 
@@ -121,11 +123,8 @@ The script checks for validity by visiting a protected page. If the session is i
 
 ### 💡 To manually force re-login:
 
-You can delete the saved cookie file:
-
-```bash
-rm config/cookies.json
-```
+Use the `--force-login` flag to bypass stored cookies and reauthenticate.  
+(No need to delete `config/cookies.json` manually.)
 
 ---
 
@@ -160,12 +159,35 @@ This project is licensed under the [Apache 2.0 License](./LICENSE).
 
 ---
 
-## ✨ Future Ideas
 
-- `--dry-run` mode
-- Generate README index of solved problems
-- Markdown export per problem
-- Filter by difficulty or tags
+## 🧩 CLI Arguments
+
+This script supports flexible command-line arguments to control its behavior:
+
+### `--force-login`
+
+Skips stored session cookies (if any) and launches a fresh browser-based login flow.
+
+```bash
+python3 sync.py --force-login
+```
+
+Useful when:
+- Your session has expired or is invalid
+- You want to log in with a different account
+- You're debugging login-related issues
+
+---
+
+### 🧪 Future CLI Ideas
+
+| Flag             | Purpose                             |
+|------------------|-------------------------------------|
+| `--dry-run`      | Show actions without writing files  |
+| `--language cpp` | Sync only a specific language       |
+| `--no-commit`    | Skip Git commits (save files only)  |
+| `--debug`        | Enable verbose logging              |
+
 
 ---
 

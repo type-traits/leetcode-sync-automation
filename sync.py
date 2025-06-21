@@ -27,6 +27,7 @@ Dependencies:
 
 import os
 import json
+import argparse
 from leetcode_client import LeetCodeClient
 from git_utils import GitHandler
 from utils import format_filename, ensure_dir, save_solution, slugify
@@ -49,12 +50,21 @@ if not os.path.exists(COMMITTED_PATH):
 with open(COMMITTED_PATH, "r") as f:
     committed = json.load(f)
 
+# 🧰 CLI argument parsing
+parser = argparse.ArgumentParser(description="Sync LeetCode submissions to GitHub.")
+parser.add_argument("--force-login", action="store_true", help="Force login and refresh cookies.")
+args = parser.parse_args()
+
 # Init clients
 lc = LeetCodeClient(LC_USERNAME, LC_PASSWORD)
 git = GitHandler(SOLUTIONS_REPO_PATH)
 
-print("[cyan]📡 Logging into LeetCode...[/cyan]")
-lc.login()
+if args.force_login:
+    print("[cyan]📡 Force login activated — launching fresh login...[/cyan]")
+else:
+    print("[cyan]📡 Logging into LeetCode using stored session (if valid)...[/cyan]")
+    
+lc.login(force=args.force_login)
 
 print("[green]✅ Fetching submissions...[/green]")
 submissions = lc.get_accepted_submissions()

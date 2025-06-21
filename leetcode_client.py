@@ -134,28 +134,29 @@ class LeetCodeClient:
 
 
     
-    def login(self):
-        if os.path.exists(COOKIES_FILE):
+    def login(self, force=False):
+        if force:
+            print("[red]⚠️ Force login requested. Skipping stored cookies...[/red]")
+        elif os.path.exists(COOKIES_FILE):
             print("[cyan]🔁 Using stored cookies...[/cyan]")
             with open(COOKIES_FILE, "r") as f:
                 cookies = json.load(f)
             self.context.add_cookies(cookies)
             self.page = self.context.new_page()
 
-            # ✅ Check if cookies are still valid
+            # ✅ Validate cookies
             self.page.goto(f"{self.BASE_URL}/submissions/")
             try:
                 self.page.wait_for_selector("#navbar_user_avatar", timeout=5000)
                 print("[green]✅ Cookies valid. Logged in.[/green]")
                 return
             except:
-                print("[yellow]⚠️ Cookies expired or invalid. Re-authentication required.[/yellow]")
-
+                print("[yellow]⚠️ Cookies invalid. Re-authentication required.[/yellow]")
         else:
-            print("[yellow]🛑 No cookies found. Launching browser for manual login...[/yellow]")
-            self.page = self.context.new_page()
+            print("[red]🛑 No cookies found. Launching browser for manual login...[/red]")
 
-        # 🛑 Manual login flow
+        # 🔁 Manual login
+        self.page = self.context.new_page()
         self.page.goto(f"{self.BASE_URL}/accounts/login/")
         print("👉 Please log in manually and solve the CAPTCHA.")
         self.page.wait_for_selector("#navbar_user_avatar", timeout=300000)
@@ -165,8 +166,8 @@ class LeetCodeClient:
         os.makedirs(os.path.dirname(COOKIES_FILE), exist_ok=True)
         with open(COOKIES_FILE, "w") as f:
             json.dump(cookies, f, indent=2)
-
         print("[green]✅ Login successful. Cookies saved![/green]")
+
 
     def get_accepted_submissions(self):
         submissions = []
