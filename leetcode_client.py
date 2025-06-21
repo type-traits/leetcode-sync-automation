@@ -141,18 +141,28 @@ class LeetCodeClient:
                 cookies = json.load(f)
             self.context.add_cookies(cookies)
             self.page = self.context.new_page()
-            self.page.goto(f"{self.BASE_URL}/problemset/all/")
-            self.page.wait_for_timeout(3000)
-            return
 
-        # First-time login (manual)
-        print("[yellow]🛑 No cookies found. Launching browser for manual login...[/yellow]")
+            # ✅ Check if cookies are still valid
+            self.page.goto(f"{self.BASE_URL}/submissions/")
+            try:
+                self.page.wait_for_selector("#navbar_user_avatar", timeout=5000)
+                print("[green]✅ Cookies valid. Logged in.[/green]")
+                return
+            except:
+                print("[yellow]⚠️ Cookies expired or invalid. Re-authentication required.[/yellow]")
+
+        else:
+            print("[yellow]🛑 No cookies found. Launching browser for manual login...[/yellow]")
+            self.page = self.context.new_page()
+
+        # 🛑 Manual login flow
         self.page.goto(f"{self.BASE_URL}/accounts/login/")
         print("👉 Please log in manually and solve the CAPTCHA.")
-        self.page.wait_for_selector("#navbar_user_avatar", timeout=120000)
+        self.page.wait_for_selector("#navbar_user_avatar", timeout=300000)
 
-        # Save cookies after successful login
+        # 💾 Save cookies
         cookies = self.context.cookies()
+        os.makedirs(os.path.dirname(COOKIES_FILE), exist_ok=True)
         with open(COOKIES_FILE, "w") as f:
             json.dump(cookies, f, indent=2)
 

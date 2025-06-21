@@ -102,6 +102,31 @@ python/121_best_time_to_buy_and_sell_stock.py
 Add solution for 121. Best Time to Buy and Sell Stock [Python]
 ```
 
+## 🔐 Cookie Management & Session Expiry
+
+This script uses your LeetCode session cookies to avoid logging in every time.
+
+- On first run, you'll manually log in using a browser (CAPTCHA may appear)
+- Your session cookie will be saved to `config/cookies.json`
+- On future runs, the script uses this cookie to stay logged in automatically
+
+### 🕒 Do cookies expire?
+
+Yes. LeetCode sessions typically expire after 2–4 weeks or if you manually log out from the site.
+
+The script checks for validity by visiting a protected page. If the session is invalid:
+
+- You'll be prompted to log in again
+- A new cookie will be saved
+
+### 💡 To manually force re-login:
+
+You can delete the saved cookie file:
+
+```bash
+rm config/cookies.json
+```
+
 ---
 
 ## 🔐 .gitignore Highlights
