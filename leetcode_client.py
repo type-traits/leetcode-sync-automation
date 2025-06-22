@@ -70,6 +70,7 @@ class LeetCodeClient:
             questions {
             questionFrontendId
             titleSlug
+            difficulty
             }
             totalLength
             hasMore
@@ -79,7 +80,7 @@ class LeetCodeClient:
 
         variables = {
             "skip": 0,
-            "limit": 1000,
+            "limit": 4000,
             "categorySlug": "all-code-essentials",
             "searchKeyword": "",
             "filters": {
