@@ -58,6 +58,35 @@ class LeetCodeClient:
         self.page = self.context.new_page()
         self.cookies = None
 
+    
+    def is_user_premium(self) -> bool:
+        """
+        Checks whether the currently logged-in user is a LeetCode Premium member.
+        Returns True if premium, False otherwise.
+        """
+        query = """
+        query globalData {
+        userStatus {
+            isSignedIn
+            isPremium
+        }
+        }
+        """
+        response = self.page.request.post(
+            url=self.GRAPHQL_URL,
+            headers=self.CONTENT_TYPE_JSON,
+            data=json.dumps({
+                "query": query,
+                "variables": {},
+                "operationName": "globalData"
+            })
+        )
+
+        result = response.json()
+        status = result.get("data", {}).get("userStatus", {})
+        return status.get("isPremium", False)
+
+
     def get_company_tags_for_slug(self, title_slug: str) -> list:
         """
         Fetches company tags for a single problem using its titleSlug.
@@ -200,7 +229,11 @@ class LeetCodeClient:
         print(f"[green]✅ Saved problem metadata to {output_path}[/green]")
 
         # Feature: fetch company Tags and store to state/company_tags.json
-        # self.save_company_tags_json(questions)
+        if self.is_user_premium():
+            print("[green]🥇 Premium account detected.[/green]")
+            self.save_company_tags_json(questions)
+        else:
+            print("[red]⚠️ Not a Premium account. Company tags won't be available.[/red]")        
 
         return id_map
     

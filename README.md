@@ -159,13 +159,7 @@ This feature lets you fetch and store company tags associated with LeetCode prob
 
 ### 🔧 Usage
 
-After fetching problem metadata, uncomment below line inside leetcode_client.py:
-
-```python
-self.save_company_tags_json(questions)
-```
-
-This will create:
+Calling script with Premium account credentials will create:
 
 ```
 state/company_tags.json
