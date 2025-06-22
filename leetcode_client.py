@@ -56,6 +56,72 @@ class LeetCodeClient:
         self.page = self.context.new_page()
         self.cookies = None
 
+    def get_company_tags_for_slug(self, title_slug: str) -> list:
+        """
+        Fetches company tags for a single problem using its titleSlug.
+        Returns a list of company names.
+        """
+        print(f"[cyan]🔍 Fetching company tags for: {title_slug}[/cyan]")
+
+        query = """
+        query questionTitle($titleSlug: String!) {
+        question(titleSlug: $titleSlug) {
+            companyTags {
+            name
+            slug
+            }
+        }
+        }
+        """
+
+        variables = {"titleSlug": title_slug}
+        response = self.page.request.post(
+            url="https://leetcode.com/graphql",
+            headers={"Content-Type": "application/json"},
+            data=json.dumps({
+                "query": query,
+                "variables": variables,
+                "operationName": "questionTitle"
+            })
+        )
+
+        result = response.json()
+
+        if "errors" in result:
+            print(f"[yellow]⚠️ Could not fetch company tags for {title_slug}[/yellow]")
+            return []
+
+        tags = result["data"]["question"]["companyTags"]
+        return [tag["name"] for tag in tags]
+    
+    def save_company_tags_json(self, problems, output_path="state/company_tags.json"):
+        """
+        Fetches company tags for a list of problems and saves to a JSON file.
+        `problems` should be a list of dicts with keys: titleSlug and questionFrontendId
+        """
+        print("[cyan]🏷️  Fetching company tags for all problems...[/cyan]")
+
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        result = {}
+
+        for problem in problems:
+            slug = problem["titleSlug"]
+            qid = problem["questionFrontendId"]
+
+            try:
+                tags = self.get_company_tags_for_slug(slug)
+                result[slug] = tags
+            except Exception as e:
+                print(f"[red]❌ Failed to fetch company tags for {slug}[/red]")
+                print("[yellow]⚠️ Aborting company tag collection early.[/yellow]")
+                break  # 🔁 Exit loop immediately if any error occurs
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            json.dump(result, f, indent=2)
+
+        print(f"[green]✅ Saved company tags to {output_path}[/green]")
+
+
     def get_problem_id_map_from_graphql(self):
         query = """
         query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $searchKeyword: String, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String) {
@@ -131,9 +197,11 @@ class LeetCodeClient:
         
         print(f"[green]✅ Saved problem metadata to {output_path}[/green]")
 
+        # Feature: fetch company Tags and store to state/company_tags.json
+        # self.save_company_tags_json(questions)
+
         return id_map
-
-
+    
     
     def login(self, force=False):
         if force:

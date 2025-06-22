@@ -34,6 +34,7 @@ leetcode-sync-automation/
 - ✅ Uses LeetCode problem ID in filenames: `1_two_sum.cpp`
 - ✅ Commits each file as a separate Git commit
 - ✅ Optionally saves full problem metadata for later use
+- ✅ Company Tag Metadata (Leetcode Premium only) [In-Tesing]
 - ✅ Supports command-line flag `--force-login` to manually refresh session cookies
 - ✅ CLI-ready: Easily extensible for future options like `--dry-run`, `--language`, `--no-commit`
 
@@ -146,6 +147,38 @@ The script checks for validity by visiting a protected page. If the session is i
 
 Use the `--force-login` flag to bypass stored cookies and reauthenticate.  
 (No need to delete `config/cookies.json` manually.)
+
+
+---
+
+## 🆕 Company Tag Metadata
+
+This feature lets you fetch and store company tags associated with LeetCode problems (e.g., “Amazon”, “Google”) into a separate JSON file.
+
+> **Note:** Company tags require a LeetCode **Premium account**. If you're not a subscriber, this data will not be available.
+
+### 🔧 Usage
+
+After fetching problem metadata, uncomment below line inside leetcode_client.py:
+
+```python
+self.save_company_tags_json(questions)
+```
+
+This will create:
+
+```
+state/company_tags.json
+```
+
+Example:
+
+```json
+{
+  "two-sum": ["Amazon", "Google"],
+  "valid-parentheses": ["Adobe"]
+}
+```
 
 ---
 
