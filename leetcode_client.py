@@ -44,6 +44,8 @@ def debug_save_html(page, filename="page_snapshot.html"):
 
 class LeetCodeClient:
     BASE_URL = "https://leetcode.com"
+    GRAPHQL_URL = "https://leetcode.com/graphql"
+    CONTENT_TYPE_JSON = {"Content-Type": "application/json"}
     SUBMISSIONS_URL = "https://leetcode.com/api/submissions/"
     PROBLEMS_URL = "https://leetcode.com/problems/api/problems/algorithms/"
 
@@ -76,8 +78,8 @@ class LeetCodeClient:
 
         variables = {"titleSlug": title_slug}
         response = self.page.request.post(
-            url="https://leetcode.com/graphql",
-            headers={"Content-Type": "application/json"},
+            url=self.GRAPHQL_URL,
+            headers=self.CONTENT_TYPE_JSON,
             data=json.dumps({
                 "query": query,
                 "variables": variables,
@@ -171,8 +173,8 @@ class LeetCodeClient:
         }
 
         response = self.page.request.post(
-            url="https://leetcode.com/graphql",
-            headers={"Content-Type": "application/json"},
+            url=self.GRAPHQL_URL,
+            headers=self.CONTENT_TYPE_JSON,
             data=json.dumps({
                 "query": query,
                 "variables": variables,
