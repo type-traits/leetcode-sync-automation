@@ -29,6 +29,7 @@ from slugify import slugify
 from rich import print
 
 COOKIES_FILE = "config/cookies.json"
+PROBLEM_METADATA_PATH = "state/problem_metadata.json"
 
 def debug_save_html(page, filename="page_snapshot.html"):
     """
@@ -49,9 +50,10 @@ class LeetCodeClient:
     SUBMISSIONS_URL = "https://leetcode.com/api/submissions/"
     PROBLEMS_URL = "https://leetcode.com/problems/api/problems/algorithms/"
 
-    def __init__(self, username, password):
+    def __init__(self, username, password, force_update=False):
         self.username = username
         self.password = password
+        self.force_update = force_update
         self.playwright = sync_playwright().start()
         self.browser = self.playwright.chromium.launch(headless=False, slow_mo=50)
         self.context = self.browser.new_context()
@@ -153,87 +155,102 @@ class LeetCodeClient:
         print(f"[green]✅ Saved company tags to {output_path}[/green]")
 
 
-    def get_problem_id_map_from_graphql(self):
-        query = """
-        query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $searchKeyword: String, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String) {
-        problemsetQuestionListV2(
-            filters: $filters
-            limit: $limit
-            searchKeyword: $searchKeyword
-            skip: $skip
-            sortBy: $sortBy
-            categorySlug: $categorySlug
-        ) {
-            questions {
-            questionFrontendId
-            titleSlug
-            difficulty
-            }
-            totalLength
-            hasMore
-        }
-        }
+    def get_all_problem_metadata(self, force_refresh=False) -> list:
         """
-
-        variables = {
-            "skip": 0,
-            "limit": 4000,
-            "categorySlug": "all-code-essentials",
-            "searchKeyword": "",
-            "filters": {
-                "filterCombineType": "ALL",
-                "statusFilter": {"questionStatuses": [], "operator": "IS"},
-                "difficultyFilter": {"difficulties": [], "operator": "IS"},
-                "languageFilter": {"languageSlugs": [], "operator": "IS"},
-                "topicFilter": {"topicSlugs": [], "operator": "IS"},
-                "acceptanceFilter": {},
-                "frequencyFilter": {},
-                "frontendIdFilter": {},
-                "lastSubmittedFilter": {},
-                "publishedFilter": {},
-                "companyFilter": {"companySlugs": [], "operator": "IS"},
-                "positionFilter": {"positionSlugs": [], "operator": "IS"},
-                "premiumFilter": {"premiumStatus": [], "operator": "IS"}
-            },
-            "sortBy": {
-                "sortField": "CUSTOM",
-                "sortOrder": "ASCENDING"
+        Returns a list of all LeetCode problem metadata, either from cache or by calling GraphQL.
+        Also triggers company tag fetch if user is Premium.
+        """
+        if not force_refresh and os.path.exists(PROBLEM_METADATA_PATH):
+            print("[cyan]💾 Using cached problem metadata.[/cyan]")
+            with open(PROBLEM_METADATA_PATH, "r") as f:
+                questions = json.load(f)
+        else :           
+            print("[blue]📡 Fetching problem metadata from LeetCode...[/blue]")
+            query = """
+            query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $searchKeyword: String, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String) {
+            problemsetQuestionListV2(
+                filters: $filters
+                limit: $limit
+                searchKeyword: $searchKeyword
+                skip: $skip
+                sortBy: $sortBy
+                categorySlug: $categorySlug
+            ) {
+                questions {
+                questionFrontendId
+                titleSlug
+                difficulty
+                }
+                totalLength
+                hasMore
             }
-        }
+            }
+            """
 
-        response = self.page.request.post(
-            url=self.GRAPHQL_URL,
-            headers=self.CONTENT_TYPE_JSON,
-            data=json.dumps({
-                "query": query,
-                "variables": variables,
-                "operationName": "problemsetQuestionListV2"
-            })
-        )
+            variables = {
+                "skip": 0,
+                "limit": 4000,
+                "categorySlug": "all-code-essentials",
+                "searchKeyword": "",
+                "filters": {
+                    "filterCombineType": "ALL",
+                    "statusFilter": {"questionStatuses": [], "operator": "IS"},
+                    "difficultyFilter": {"difficulties": [], "operator": "IS"},
+                    "languageFilter": {"languageSlugs": [], "operator": "IS"},
+                    "topicFilter": {"topicSlugs": [], "operator": "IS"},
+                    "acceptanceFilter": {},
+                    "frequencyFilter": {},
+                    "frontendIdFilter": {},
+                    "lastSubmittedFilter": {},
+                    "publishedFilter": {},
+                    "companyFilter": {"companySlugs": [], "operator": "IS"},
+                    "positionFilter": {"positionSlugs": [], "operator": "IS"},
+                    "premiumFilter": {"premiumStatus": [], "operator": "IS"}
+                },
+                "sortBy": {
+                    "sortField": "CUSTOM",
+                    "sortOrder": "ASCENDING"
+                }
+            }
+            
+            response = self.page.request.post(
+                url=self.GRAPHQL_URL,
+                headers=self.CONTENT_TYPE_JSON,
+                data=json.dumps({
+                    "query": query,
+                    "variables": variables,
+                    "operationName": "problemsetQuestionListV2"
+                })
+            )
+            json_result = response.json()
 
-        result = response.json()
-        if "data" not in result or "problemsetQuestionListV2" not in result["data"]:
-            raise ValueError(f"❌ GraphQL response failed: {result.get('errors', 'unknown error')}")
+            if "data" not in json_result or "problemsetQuestionListV2" not in json_result["data"]:
+                raise ValueError(f"❌ GraphQL response failed: {json_result.get('errors', 'unknown error')}")
 
-        questions = result["data"]["problemsetQuestionListV2"]["questions"]
+            questions = json_result["data"]["problemsetQuestionListV2"]["questions"]
+
+            os.makedirs(os.path.dirname(PROBLEM_METADATA_PATH), exist_ok=True)
+            with open(PROBLEM_METADATA_PATH, "w", encoding="utf-8") as f:
+                json.dump(questions, f, indent=2)
+            
+            print(f"[green]✅ Saved problem metadata to {PROBLEM_METADATA_PATH}[/green]")
+
+            # Feature: fetch company Tags and store to state/company_tags.json
+            if self.is_user_premium():
+                print("[green]🥇 Premium account detected.[/green]")
+                self.save_company_tags_json(questions)
+            else:
+                print("[red]⚠️ Not a Premium account. Company tags won't be available.[/red]")
+            
         id_map = {
             q["titleSlug"]: q["questionFrontendId"]
             for q in questions
         }
 
-        output_path = "state/problem_metadata.json"
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, "w", encoding="utf-8") as f:
-            json.dump(questions, f, indent=2)
         
-        print(f"[green]✅ Saved problem metadata to {output_path}[/green]")
+        
 
-        # Feature: fetch company Tags and store to state/company_tags.json
-        if self.is_user_premium():
-            print("[green]🥇 Premium account detected.[/green]")
-            self.save_company_tags_json(questions)
-        else:
-            print("[red]⚠️ Not a Premium account. Company tags won't be available.[/red]")        
+                
 
         return id_map
     
@@ -284,7 +301,7 @@ class LeetCodeClient:
 
         # debug_save_html(self.page)
 
-        id_map = self.get_problem_id_map_from_graphql()
+        id_map = self.get_all_problem_metadata(self.force_update)
 
         print("[magenta]🔄 Fetching accepted submissions from API...[/magenta]")
         while True:

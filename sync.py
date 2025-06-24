@@ -53,10 +53,11 @@ with open(COMMITTED_PATH, "r") as f:
 # 🧰 CLI argument parsing
 parser = argparse.ArgumentParser(description="Sync LeetCode submissions to GitHub.")
 parser.add_argument("--force-login", action="store_true", help="Force login and refresh cookies.")
+parser.add_argument("--force-update", action="store_true", help="Force refresh of problem metadata")
 args = parser.parse_args()
 
 # Init clients
-lc = LeetCodeClient(LC_USERNAME, LC_PASSWORD)
+lc = LeetCodeClient(LC_USERNAME, LC_PASSWORD, force_update=args.force_update)
 git = GitHandler(SOLUTIONS_REPO_PATH)
 
 if args.force_login:
