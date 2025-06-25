@@ -16,9 +16,10 @@ __pycache__/
 playwright-report/
 test-results/
 
-# Local config/secrets/state
+# Local config/secrets/state/logs
 config/
 state/
+logs/
 
 # Env files
 .env

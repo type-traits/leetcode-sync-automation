@@ -22,26 +22,14 @@ additional features like filtering by date, topic, etc.
 
 from playwright.sync_api import sync_playwright
 import os
+import sys
 import time
 import json
 from urllib.parse import urljoin
 from slugify import slugify
-from rich import print
 
 COOKIES_FILE = "config/cookies.json"
 PROBLEM_METADATA_PATH = "state/problem_metadata.json"
-
-def debug_save_html(page, filename="page_snapshot.html"):
-    """
-    Saves the full HTML content of the current page to a file
-    and optionally pauses execution.
-    """
-    html = page.content()
-    with open(filename, "w", encoding="utf-8") as f:
-        f.write(html)
-    print(f"📄 Saved HTML to {filename}.")
-    # Uncomment below if you want to pause
-    # input("🛑 Script paused. Press Enter to continue.")
 
 class LeetCodeClient:
     BASE_URL = "https://leetcode.com"
@@ -51,6 +39,9 @@ class LeetCodeClient:
     PROBLEMS_URL = "https://leetcode.com/problems/api/problems/algorithms/"
 
     def __init__(self, username, password, force_update=False):
+        from logger import get_logger, get_log_and_print
+        self.log = get_logger()
+        self.log_and_print = get_log_and_print()
         self.username = username
         self.password = password
         self.force_update = force_update
@@ -59,6 +50,18 @@ class LeetCodeClient:
         self.context = self.browser.new_context()
         self.page = self.context.new_page()
         self.cookies = None
+    
+    def debug_save_html(self, page, filename="page_snapshot.html"):
+        """
+        Saves the full HTML content of the current page to a file
+        and optionally pauses execution.
+        """
+        html = page.content()
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(html)
+        self.log_and_print.info(f"Saved HTML to {filename}.", style="cyan", emoji="📄")
+        # Uncomment below if you want to pause
+        # input("🛑 Script paused. Press Enter to continue.")
 
     
     def is_user_premium(self) -> bool:
@@ -94,7 +97,7 @@ class LeetCodeClient:
         Fetches company tags for a single problem using its titleSlug.
         Returns a list of company names.
         """
-        print(f"[cyan]🔍 Fetching company tags for: {title_slug}[/cyan]")
+        self.log.info("Fetching company tags for: {slug}")
 
         query = """
         query questionTitle($titleSlug: String!) {
@@ -121,7 +124,7 @@ class LeetCodeClient:
         result = response.json()
 
         if "errors" in result:
-            print(f"[yellow]⚠️ Could not fetch company tags for {title_slug}[/yellow]")
+            self.log_and_print.warning("Could not fetch company tags for {title_slug}", style="yellow", emoji="⚠️")
             return []
 
         tags = result["data"]["question"]["companyTags"]
@@ -132,7 +135,7 @@ class LeetCodeClient:
         Fetches company tags for a list of problems and saves to a JSON file.
         `problems` should be a list of dicts with keys: titleSlug and questionFrontendId
         """
-        print("[cyan]🏷️  Fetching company tags for all problems...[/cyan]")
+        self.log.info("Fetching company tags for all problems...")
 
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
         result = {}
@@ -145,14 +148,17 @@ class LeetCodeClient:
                 tags = self.get_company_tags_for_slug(slug)
                 result[slug] = tags
             except Exception as e:
-                print(f"[red]❌ Failed to fetch company tags for {slug}[/red]")
-                print("[yellow]⚠️ Aborting company tag collection early.[/yellow]")
-                break  # 🔁 Exit loop immediately if any error occurs
+                self.log.exception(f"Failed to fetch company tags for {slug}: {e}")
+                self.log_and_print.warning(
+                    f"⚠️ Company tag fetch failed for {slug}. Aborting early.",
+                    style="yellow"
+                )
+                break
 
         with open(output_path, "w", encoding="utf-8") as f:
             json.dump(result, f, indent=2)
 
-        print(f"[green]✅ Saved company tags to {output_path}[/green]")
+        self.log_and_print.success("Saved company tags to {output_path}", style="green", emoji="✅")
 
 
     def get_all_problem_metadata(self, force_refresh=False) -> list:
@@ -161,11 +167,11 @@ class LeetCodeClient:
         Also triggers company tag fetch if user is Premium.
         """
         if not force_refresh and os.path.exists(PROBLEM_METADATA_PATH):
-            print("[cyan]💾 Using cached problem metadata.[/cyan]")
+            self.log.debug("Using cached problem metadata.")
             with open(PROBLEM_METADATA_PATH, "r") as f:
                 questions = json.load(f)
         else :           
-            print("[blue]📡 Fetching problem metadata from LeetCode...[/blue]")
+            self.log.info("Fetching problem metadata from LeetCode...")
             query = """
             query problemsetQuestionListV2($filters: QuestionFilterInput, $limit: Int, $searchKeyword: String, $skip: Int, $sortBy: QuestionSortByInput, $categorySlug: String) {
             problemsetQuestionListV2(
@@ -224,8 +230,12 @@ class LeetCodeClient:
             )
             json_result = response.json()
 
-            if "data" not in json_result or "problemsetQuestionListV2" not in json_result["data"]:
-                raise ValueError(f"❌ GraphQL response failed: {json_result.get('errors', 'unknown error')}")
+            try:
+                if "data" not in json_result or "problemsetQuestionListV2" not in json_result["data"]:
+                    raise ValueError(f"GraphQL response failed: {json_result.get('errors', 'unknown error')}")
+            except Exception as e:
+                self.log_and_print.exception("❌ Failed to fetch problem metadata from GraphQL", exc=e)
+                sys.exit(1)  # Gracefully terminate the script
 
             questions = json_result["data"]["problemsetQuestionListV2"]["questions"]
 
@@ -233,77 +243,87 @@ class LeetCodeClient:
             with open(PROBLEM_METADATA_PATH, "w", encoding="utf-8") as f:
                 json.dump(questions, f, indent=2)
             
-            print(f"[green]✅ Saved problem metadata to {PROBLEM_METADATA_PATH}[/green]")
+            self.log_and_print.success("Saved problem metadata to {PROBLEM_METADATA_PATH}", style="green", emoji="✅")
 
             # Feature: fetch company Tags and store to state/company_tags.json
             if self.is_user_premium():
-                print("[green]🥇 Premium account detected.[/green]")
+                self.log_and_print.success("🥇 Premium account detected.", style="green", emoji="🥇")
                 self.save_company_tags_json(questions)
             else:
-                print("[red]⚠️ Not a Premium account. Company tags won't be available.[/red]")
-            
-        id_map = {
-            q["titleSlug"]: q["questionFrontendId"]
-            for q in questions
-        }
+                self.log_and_print.warning("Not a Premium account. Company tags won't be available.", style="red", emoji="⚠️")
 
-        
-        
-
-                
-
-        return id_map
+        return questions
     
-    
+    def save_cookies(self):
+        cookies = self.context.cookies()
+        os.makedirs(os.path.dirname(COOKIES_FILE), exist_ok=True)
+        with open(COOKIES_FILE, "w") as f:
+            json.dump(cookies, f, indent=2)
+
+    def validate_cookies(self) -> bool:
+        self.page.goto(f"{self.BASE_URL}/submissions/")
+        try:
+            self.page.wait_for_selector("#navbar_user_avatar", timeout=5000)
+            return True
+        except:
+            self.log_and_print.warning("Cookies invalid. Re-authentication required.", style="yellow", emoji="⚠️")
+            return False
+
     def login(self, force=False):
         if force:
-            print("[red]⚠️ Force login requested. Skipping stored cookies...[/red]")
+            self.log_and_print.warning("Force login requested. Skipping stored cookies...", style="red", emoji="⚠️")
         elif os.path.exists(COOKIES_FILE):
-            print("[cyan]🔁 Using stored cookies...[/cyan]")
+            self.log_and_print.info("Using stored cookies...", style="cyan", emoji="🔁")
             with open(COOKIES_FILE, "r") as f:
                 cookies = json.load(f)
             self.context.add_cookies(cookies)
             self.page = self.context.new_page()
 
             # ✅ Validate cookies
-            self.page.goto(f"{self.BASE_URL}/submissions/")
-            try:
-                self.page.wait_for_selector("#navbar_user_avatar", timeout=5000)
-                print("[green]✅ Cookies valid. Logged in.[/green]")
-                return
-            except:
-                print("[yellow]⚠️ Cookies invalid. Re-authentication required.[/yellow]")
+            if self.validate_cookies():
+                self.log_and_print.success("Cookies valid. Logged in.", style="green", emoji="✅")
+                return                
         else:
-            print("[red]🛑 No cookies found. Launching browser for manual login...[/red]")
+            self.log_and_print.error("No cookies found. Launching browser for manual login...", style="red", emoji="🛑")
 
         # 🔁 Manual login
         self.page = self.context.new_page()
         self.page.goto(f"{self.BASE_URL}/accounts/login/")
-        print("👉 Please log in manually and solve the CAPTCHA.")
+        if not force:
+            self.log.info("Auto-filling login fields from config...")
+            self.page.fill('input[name="login"]', self.username)
+            self.page.fill('input[name="password"]', self.password)
+            self.page.focus('input[name="password"]')
+        else:
+            self.log.info("Force login active — clearing login fields...")
+            self.page.fill('input[name="login"]', "")
+            self.page.fill('input[name="password"]', "")
+
+        self.log_and_print.info("Please solve the CAPTCHA and log in manually.", style="magenta", emoji="👉")
         self.page.wait_for_selector("#navbar_user_avatar", timeout=300000)
 
         # 💾 Save cookies
-        cookies = self.context.cookies()
-        os.makedirs(os.path.dirname(COOKIES_FILE), exist_ok=True)
-        with open(COOKIES_FILE, "w") as f:
-            json.dump(cookies, f, indent=2)
-        print("[green]✅ Login successful. Cookies saved![/green]")
-
+        self.save_cookies()
+        self.log_and_print.success("Login successful. Cookies saved!", style="green", emoji="✅")
 
     def get_accepted_submissions(self):
         submissions = []
         offset = 0
         limit = 20
 
-        print("[magenta]📥 Fetching problem metadata...[/magenta]")
         self.page.goto("https://leetcode.com/problemset/")
         self.page.wait_for_selector("script#__NEXT_DATA__", state="attached")
 
         # debug_save_html(self.page)
 
-        id_map = self.get_all_problem_metadata(self.force_update)
+        questions = self.get_all_problem_metadata(self.force_update)
 
-        print("[magenta]🔄 Fetching accepted submissions from API...[/magenta]")
+        id_map = {
+            q["titleSlug"]: q["questionFrontendId"]
+            for q in questions
+        }
+
+        self.log.info("Fetching accepted submissions from API...")
         while True:
             url = f"{self.SUBMISSIONS_URL}?offset={offset}&limit={limit}"
             self.page.goto(url)

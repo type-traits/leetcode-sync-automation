@@ -18,8 +18,6 @@ Dependencies:
 
 import os
 from slugify import slugify as slugify_lib
-from rich import print
-
 
 def slugify(text):
     """
